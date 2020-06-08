@@ -1,0 +1,92 @@
+# import libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib
+import random
+import scipy.integrate as integrate
+import scipy.special as special
+import scipy.stats as stats
+
+class Investor:
+    """
+    All the data about the investor.
+    
+    Takes information characteristic for the investor, i.e.: initial funds (unitless measure),
+    strategy (greedy, cautious, neutral), luck (50% at standard), risk, profit and creates an instance
+    of an investor
+    
+    Parameters:
+    -----------------
+    
+    strategy: str = "Neutral"
+        Defines investing strategy type, characteristic of an investor.
+        
+        Takes 3 values:
+        - Greedy:
+            1. Profit-to-Risk ratio (PTRR) drops with respect to gained funds.
+            2. Accepts different types of PTRR behaviour: linear, sigmoidal
+            3. Profit and Risk are more spread out.
+            4. Risk is right skewed (values are negative), the more the higher the Profit.
+               The Profit is left skewed.
+            
+        - Cautious:
+            1. PTRR is grows with respect to gained funds
+            2. Accepts different types of PTRR behaviour: linear, sigmoidal
+            3. Profit and Risk are narrower, the more, the higher the funds.
+            4. Risk is left skewed, Profit is right skewed.
+            
+        - Neutral:
+            1. PTRR is independent of the gained funds
+            2. Profit and Risk are symmetrically spread around their specific means.
+            3. The spread of Profit or Risk are independent.
+            
+    initial_funds: int = 1000
+        Initial sum of money to be invested.
+        
+    luck: float = 0.5
+        A collective paramater dependent on proper investment entry, investment exit. Must be a value
+        from range (0,1)
+        
+    risk: tuple = (mean: float = 0.05, low: float = 0.045, high: float = 0.055)
+        Acceptable risk for each investment. Takes a tuple of risk values to produce a beta
+        distribution with mean, low and high values.
+    
+    profit: tuple = (mean: float = 0.1, low: float = 0.09, high: float = 0.11)
+        Acceptable profit for each investment. Takes a tuple of profit values to produce a beta
+        distribution with mean, low and high values.
+    
+    single_sum: int = 150
+        The value of a single investment.
+        
+    margin: float = 0.5
+        Amount of money from the total funds not to be invested.
+   
+    Methods:
+    -----------------
+    
+    invest_funds(n: int = 25, rounds: int = 100):
+        Takes the value of investments and outputs the return of investment (ROI), final funds
+        (amount after n rounds of investment), plot with the median, quartile etc. fields
+        for the family of [rounds] investments.
+    
+    """
+    
+    properties = None
+    
+    def __init__(self, strategy: str="Neutral", initial_funds: int=1000, luck: float=0.5,
+                 risk: tuple=(mean: float=0.05, low: float=0.045, high: float=0.055),
+                 profit: tuple=(mean: float=0.1, low: float=0.09, high: float=0.11),
+                 single_sum: int=150, margin: float=0.5):
+        self.strategy = strategy
+        self.initial_funds = initial_funds
+        self.luck = luck
+        self.risk = risk
+        self.profit = profit
+        self.single_sum = single_sum
+        self.margin = margin
+        
+        self.properties = dict([("strategy", self.strategy), ("initial_funds", self.initial_funds),
+                                ("luck", self.luck), ("risk", self.risk), ("profit", self.profit),
+                                ("single_sum", self.single_sum), ("margin", self.margin)])
+        
