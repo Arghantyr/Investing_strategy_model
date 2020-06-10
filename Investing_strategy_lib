@@ -65,8 +65,7 @@ class Investor:
     properties = None
     
     def __init__(self, strategy: str="Neutral", initial_funds: int=1000, luck: float=0.5,
-                 risk: tuple=(mean: float=0.05, low: float=0.045, high: float=0.055),
-                 profit: tuple=(mean: float=0.1, low: float=0.09, high: float=0.11),
+                 risk: tuple=(0.05, 0.045, 0.055), profit: tuple=(0.1, 0.09, 0.11),
                  single_sum: int=150, margin: float=0.5):
         self.strategy = strategy
         self.initial_funds = initial_funds
@@ -82,59 +81,59 @@ class Investor:
     
     # PTRR method for calculating Profit-to_Risk Ratio for arbitrary funds
     
-    def PTRR(funds: float=self.initial_funds, initial_funds: float = self.initial_funds,
-             profit: float = self.profit[0], risk: float = self.risk[0], model: str = "linear",
-             gamble_limit: float = 10*self.initial_funds, drop: float = 0.001):
-    """
-    Calculates the Profit-to-risk ratio under specified boundary conditions.
-    The default values corrrspond to the "Greedy" strategy, with two models available:
-    linear and logistic.
-    
-    Parameters:
-    -----------
-    
-    funds: float
-        Value at which the PTRR for the next transaction is to be computed
-    
-    initial_funds: float
-        Starting value at which PTRR is equal to the intial profit/risk.
+    def PTRR(funds: float, initial_funds: float, profit: float, risk: float, gamble_limit: float,
+             model: str = "linear", drop: float = 0.001):
         
-    profit: float
-        Expected profit from the investment when funds = intial_funds.
-        
-    risk: float
-        Expected risk on the investment when funds = intial_funds.
-        
-    model: str = "linear" or "logistic"
-        Model to calculate future PTRR:
-        - linear - use linear function; defaults to drop rate such that PTRR = 1 at gamble_limit
-        - logistic - use logistic function; defaults to drop rate such that PTRR = 0.5*initial PTRR at gamble_limit
-    
-    gamble_limit: float
-        Value at which PTRR equals:
-        - 1 - model: "linear"
-        - 0.5 intial PTRR - model: "logistic"
-        
-    drop: float = 0.001
-        Drop rate coeficient for the logistic model.
-        For values:
-        - 0 < drop < 1 - stretches the curve along the funds axis, the more, the lower the value
-        - drop >= 1 - returns a step function with a jump at gamble_limit
-    """
-    
-    # Check for the properess of the input
-    
-    PTRR_init = profit/risk
-    
-    change_coeff = - (PTRR_init - 1) / (gamble_limit)
-    
-    if funds < initial_funds:
-        PTRR = PTRR_init
-    else:
-        if model == "linear":
-            PTRR = PTRR_init + change_coeff*funds
-        elif model == "logistic":
-            PTRR_0 = 1 - special.expit(drop * (- gamble_limit - initial_funds))
-            PTRR = 2*(0.5*PTRR_init)*(PTRR_0**(-1)) * (1 - special.expit(drop * (funds - gamble_limit - initial_funds)))
-            
-    return PTRR
+        """
+        Calculates the Profit-to-risk ratio under specified boundary conditions.
+        The default values corrrspond to the "Greedy" strategy, with two models available:
+        linear and logistic.
+
+        Parameters:
+        -----------
+
+        funds: float
+            Value at which the PTRR for the next transaction is to be computed
+
+        initial_funds: float
+            Starting value at which PTRR is equal to the intial profit/risk.
+
+        profit: float
+            Expected profit from the investment when funds = intial_funds.
+
+        risk: float
+            Expected risk on the investment when funds = intial_funds.
+
+        model: str = "linear" or "logistic"
+            Model to calculate future PTRR:
+            - linear - use linear function; defaults to drop rate such that PTRR = 1 at gamble_limit
+            - logistic - use logistic function; defaults to drop rate such that PTRR = 0.5*initial PTRR at gamble_limit
+
+        gamble_limit: float
+            Value at which PTRR equals:
+            - 1 - model: "linear"
+            - 0.5 intial PTRR - model: "logistic"
+
+        drop: float = 0.001
+            Drop rate coeficient for the logistic model.
+            For values:
+            - 0 < drop < 1 - stretches the curve along the funds axis, the more, the lower the value
+            - drop >= 1 - returns a step function with a jump at gamble_limit
+        """
+
+        # Check for the properess of the input
+
+        PTRR_init = profit/risk
+
+        change_coeff = - (PTRR_init - 1) / (gamble_limit)
+
+        if funds < initial_funds:
+            PTRR = PTRR_init
+        else:
+            if model == "linear":
+                PTRR = PTRR_init + change_coeff*funds
+            elif model == "logistic":
+                PTRR_0 = 1 - special.expit(drop * (- gamble_limit - initial_funds))
+                PTRR = 2*(0.5*PTRR_init)*(PTRR_0**(-1)) * (1 - special.expit(drop * (funds - gamble_limit - initial_funds)))
+
+        return PTRR
