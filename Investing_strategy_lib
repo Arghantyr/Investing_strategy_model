@@ -62,11 +62,13 @@ class Investor:
     
     """
     
-    properties = None
     
-    def __init__(self, strategy: str="Neutral", initial_funds: int=1000, luck: float=0.5,
+    def __init__(self, name, strategy: str="Neutral", initial_funds: int=1000, luck: float=0.5,
                  risk: tuple=(0.05, 0.045, 0.055), profit: tuple=(0.1, 0.09, 0.11),
                  single_sum: int=150, margin: float=0.5):
+        
+        self.properties = None
+        self.name = name
         self.strategy = strategy
         self.initial_funds = initial_funds
         self.luck = luck
@@ -81,8 +83,8 @@ class Investor:
     
     # PTRR method for calculating Profit-to_Risk Ratio for arbitrary funds
     
-    def PTRR(funds: float, initial_funds: float, profit: float, risk: float, gamble_limit: float,
-             model: str = "linear", drop: float = 0.001, limit: float = 1.0, strategy: str = "Neutral"):
+    def PTRR(self, funds: float, gamble_limit: float, model: str = "linear", drop: float = 0.001,
+             limit: float = 1.0):
         
         """
         Calculates the Profit-to-risk ratio under specified boundary conditions.
@@ -94,16 +96,7 @@ class Investor:
 
         funds: float
             Value at which the PTRR for the next transaction is to be computed
-
-        initial_funds: float
-            Starting value at which PTRR is equal to the intial profit/risk.
-
-        profit: float
-            Expected profit from the investment when funds = intial_funds.
-
-        risk: float
-            Expected risk on the investment when funds = intial_funds.
-
+            
         model: str = "linear" or "logistic"
             Model to calculate future PTRR:
             - linear - use linear function; defaults to drop rate such that PTRR = 1 at gamble_limit
@@ -129,65 +122,72 @@ class Investor:
             
         """
 
+        initial_funds = self.initial_funds
+        profit = self.profit[0]
+        risk = self.risk[0]
+        strategy = self.strategy
+        
         # Check for the properess of the input
 
         PTRR_init = profit/risk
+        PTRR = None
         
         if strategy == "Greedy":
 
-            change_coeff = - (PTRR_init - 1) / (gamble_limit)
+            change_coeff = - (PTRR_init - 1) / (gamble_limit - initial_funds)
 
             if funds <= initial_funds:
                 PTRR = PTRR_init
             else:
                 if model == "linear":
                     
+                    formula = PTRR_init + change_coeff*(funds - initial_funds)
+                    
                     # Set the limit
-                    if (PTRR_init + change_coeff*funds) >= PTRR_init:
+                    if formula >= PTRR_init:
                         raise Exception("Not greedy enough. The profit is too high with respect to risk.")
                         
-                    elif limit <= (PTRR_init + change_coeff*funds) < PTRR_init:
-                        PTRR = PTRR_init + change_coeff*funds
+                    elif limit <= formula < PTRR_init:
+                        PTRR = formula
                         
-                    elif 0 < (PTRR_init + change_coeff*funds) < limit:
+                    elif formula < limit:
                         PTRR = limit
-                        
-                    elif (PTRR_init + change_coeff*funds) <= 0:
-                        raise Exception("The profit must be non-zero and posiive.")
                         
                 elif model == "logistic":
                     PTRR_0 = - special.expit(drop * (initial_funds - gamble_limit - initial_funds))
                     PTRR = PTRR_init + (PTRR_init - limit) * (- PTRR_0 - special.expit(drop * (funds - gamble_limit - initial_funds)))
 
-            return PTRR
         
         elif strategy == "Cautious":
             
-            change_coeff = (PTRR_init - 1) / (gamble_limit)
+            change_coeff = (PTRR_init - 1) / (gamble_limit - initial_funds)
 
             if funds <= initial_funds:
                 PTRR = PTRR_init
             else:
                 if model == "linear":
                     
+                    formula = PTRR_init + change_coeff*(funds - initial_funds)
+                    
                     # Set the limit
-                    if (PTRR_init + change_coeff*funds) <= PTRR_init:
+                    if formula <= PTRR_init:
                         raise Exception("Not cautious enough. The profit is too small with respect to risk.")
                         
-                    elif PTRR_init <= (PTRR_init + change_coeff*funds) < limit:
-                        PTRR = PTRR_init + change_coeff*funds
+                    elif PTRR_init <= formula < limit:
+                        PTRR = formula
                         
-                    elif (PTRR_init + change_coeff*funds) >= limit:
+                    elif formula >= limit:
                         PTRR = limit
                         
                 elif model == "logistic":
                     PTRR_0 = special.expit(drop * (initial_funds - gamble_limit - initial_funds))
                     PTRR = PTRR_init + limit * (- PTRR_0 + special.expit(drop * (funds - gamble_limit - initial_funds)))
 
-            return PTRR
             
         elif strategy == "Neutral":
             PTRR = PTRR_init
             
         else:
             raise Exception("Invalid strategy. Only 'Greedy', 'Neutral' and 'Cautious' accepted.")
+            
+        return PTRR
