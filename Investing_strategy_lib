@@ -133,57 +133,67 @@ class Investor:
         PTRR = None
         
         if strategy == "Greedy":
-
-            change_coeff = - (PTRR_init - 1) / (gamble_limit - initial_funds)
-
-            if funds <= initial_funds:
-                PTRR = PTRR_init
+            
+            # Check for valid input calues
+            if limit >= PTRR_init:
+                raise Exception("Invalid limit. Expected limit<profit/risk for 'Greedy' strategy.")
+                
             else:
-                if model == "linear":
-                    
-                    formula = PTRR_init + change_coeff*(funds - initial_funds)
-                    
-                    # Set the limit
-                    if formula >= PTRR_init:
-                        raise Exception("Not greedy enough. The profit is too high with respect to risk.")
-                        
-                    elif limit <= formula < PTRR_init:
-                        PTRR = formula
-                        
-                    elif formula < limit:
-                        PTRR = limit
-                        
-                elif model == "logistic":
-                    PTRR_0 = - special.expit(drop * (initial_funds - gamble_limit - initial_funds))
-                    PTRR = PTRR_init + (PTRR_init - limit) * (- PTRR_0 - special.expit(drop * (funds - gamble_limit - initial_funds)))
+                change_coeff = - (PTRR_init - 1) / (gamble_limit - initial_funds)
 
-        
+                if funds <= initial_funds:
+                    PTRR = PTRR_init
+                else:
+                    if model == "linear":
+
+                        formula = PTRR_init + change_coeff*(funds - initial_funds)
+
+                        # Set the limit
+                        if formula >= PTRR_init:
+                            raise Exception("Not greedy enough. The profit is too high with respect to risk.")
+
+                        elif limit <= formula < PTRR_init:
+                            PTRR = formula
+
+                        elif formula < limit:
+                            PTRR = limit
+
+                    elif model == "logistic":
+                        PTRR_0 = - special.expit(drop * (initial_funds - gamble_limit - initial_funds))
+                        PTRR = PTRR_init + (PTRR_init - limit) * (- PTRR_0 - special.expit(drop * (funds - gamble_limit - initial_funds)))
+
+
         elif strategy == "Cautious":
             
-            change_coeff = (PTRR_init - 1) / (gamble_limit - initial_funds)
+            # Check for valid input calues
+            if limit <= PTRR_init:
+                raise Exception("Invalid limit. Expected limit>profit/risk for 'Cautious' strategy.")
 
-            if funds <= initial_funds:
-                PTRR = PTRR_init
             else:
-                if model == "linear":
-                    
-                    formula = PTRR_init + change_coeff*(funds - initial_funds)
-                    
-                    # Set the limit
-                    if formula <= PTRR_init:
-                        raise Exception("Not cautious enough. The profit is too small with respect to risk.")
-                        
-                    elif PTRR_init <= formula < limit:
-                        PTRR = formula
-                        
-                    elif formula >= limit:
-                        PTRR = limit
-                        
-                elif model == "logistic":
-                    PTRR_0 = special.expit(drop * (initial_funds - gamble_limit - initial_funds))
-                    PTRR = PTRR_init + limit * (- PTRR_0 + special.expit(drop * (funds - gamble_limit - initial_funds)))
+                change_coeff = (PTRR_init - 1) / (gamble_limit - initial_funds)
 
-            
+                if funds <= initial_funds:
+                    PTRR = PTRR_init
+                else:
+                    if model == "linear":
+
+                        formula = PTRR_init + change_coeff*(funds - initial_funds)
+
+                        # Set the limit
+                        if formula <= PTRR_init:
+                            raise Exception("Not cautious enough. The profit is too small with respect to risk.")
+
+                        elif PTRR_init <= formula < limit:
+                            PTRR = formula
+
+                        elif formula >= limit:
+                            PTRR = limit
+
+                    elif model == "logistic":
+                        PTRR_0 = special.expit(drop * (initial_funds - gamble_limit - initial_funds))
+                        PTRR = PTRR_init + limit * (- PTRR_0 + special.expit(drop * (funds - gamble_limit - initial_funds)))
+
+
         elif strategy == "Neutral":
             PTRR = PTRR_init
             
