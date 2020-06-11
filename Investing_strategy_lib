@@ -82,7 +82,7 @@ class Investor:
     # PTRR method for calculating Profit-to_Risk Ratio for arbitrary funds
     
     def PTRR(funds: float, initial_funds: float, profit: float, risk: float, gamble_limit: float,
-             model: str = "linear", drop: float = 0.001):
+             model: str = "linear", drop: float = 0.001, limit: float = 1.0, strategy: str = "Neutral"):
         
         """
         Calculates the Profit-to-risk ratio under specified boundary conditions.
@@ -119,21 +119,75 @@ class Investor:
             For values:
             - 0 < drop < 1 - stretches the curve along the funds axis, the more, the lower the value
             - drop >= 1 - returns a step function with a jump at gamble_limit
+            
+        limit: float = 1.0
+            PTRR value to be reached by the model.
+            Range depends on the model:
+            - Greedy     0 < limit < PTRR_init
+            - Neutral    ignored
+            - Cautious   PTRR_init < limit
+            
         """
 
         # Check for the properess of the input
 
         PTRR_init = profit/risk
+        
+        if strategy == "Greedy":
 
-        change_coeff = - (PTRR_init - 1) / (gamble_limit)
+            change_coeff = - (PTRR_init - 1) / (gamble_limit)
 
-        if funds < initial_funds:
+            if funds <= initial_funds:
+                PTRR = PTRR_init
+            else:
+                if model == "linear":
+                    
+                    # Set the limit
+                    if (PTRR_init + change_coeff*funds) >= PTRR_init:
+                        raise Exception("Not greedy enough. The profit is too high with respect to risk.")
+                        
+                    elif limit <= (PTRR_init + change_coeff*funds) < PTRR_init:
+                        PTRR = PTRR_init + change_coeff*funds
+                        
+                    elif 0 < (PTRR_init + change_coeff*funds) < limit:
+                        PTRR = limit
+                        
+                    elif (PTRR_init + change_coeff*funds) <= 0:
+                        raise Exception("The profit must be non-zero and posiive.")
+                        
+                elif model == "logistic":
+                    PTRR_0 = - special.expit(drop * (initial_funds - gamble_limit - initial_funds))
+                    PTRR = PTRR_init + (PTRR_init - limit) * (- PTRR_0 - special.expit(drop * (funds - gamble_limit - initial_funds)))
+
+            return PTRR
+        
+        elif strategy == "Cautious":
+            
+            change_coeff = (PTRR_init - 1) / (gamble_limit)
+
+            if funds <= initial_funds:
+                PTRR = PTRR_init
+            else:
+                if model == "linear":
+                    
+                    # Set the limit
+                    if (PTRR_init + change_coeff*funds) <= PTRR_init:
+                        raise Exception("Not cautious enough. The profit is too small with respect to risk.")
+                        
+                    elif PTRR_init <= (PTRR_init + change_coeff*funds) < limit:
+                        PTRR = PTRR_init + change_coeff*funds
+                        
+                    elif (PTRR_init + change_coeff*funds) >= limit:
+                        PTRR = limit
+                        
+                elif model == "logistic":
+                    PTRR_0 = special.expit(drop * (initial_funds - gamble_limit - initial_funds))
+                    PTRR = PTRR_init + limit * (- PTRR_0 + special.expit(drop * (funds - gamble_limit - initial_funds)))
+
+            return PTRR
+            
+        elif strategy == "Neutral":
             PTRR = PTRR_init
+            
         else:
-            if model == "linear":
-                PTRR = PTRR_init + change_coeff*funds
-            elif model == "logistic":
-                PTRR_0 = 1 - special.expit(drop * (- gamble_limit - initial_funds))
-                PTRR = 2*(0.5*PTRR_init)*(PTRR_0**(-1)) * (1 - special.expit(drop * (funds - gamble_limit - initial_funds)))
-
-        return PTRR
+            raise Exception("Invalid strategy. Only 'Greedy', 'Neutral' and 'Cautious' accepted.")
