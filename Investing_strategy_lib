@@ -201,3 +201,34 @@ class Investor:
             raise Exception("Invalid strategy. Only 'Greedy', 'Neutral' and 'Cautious' accepted.")
             
         return PTRR
+    
+    def profit(self):
+        
+        """
+        Returns the beta distributed profit value according to the low, high and mean values from the initial 
+        profit tuple and strategy implemented.
+        
+        Depending on the model:
+        - Greedy
+            The profit curve spreads out towards higher values, proportionally on the funds, i.e.:
+            high = (funds / initial_funds) * high
+            
+            The risk curve shifts towards higher values depending on the profit curve and remains left skewed.
+        """
+        
+        # Compute parameter 'b' to provide mode = mean
+        
+        loc = profit[1]
+        scale = (profit[2] - profit[1])
+        mean = profit[0]
+        
+        def var_b(a, xmax, loc, scale):
+    
+            var_b = 1 + (a - 1) * (scale + loc - xmax) / (xmax - loc)
+    
+            return var_b
+        
+        a = a
+        b = var_b(a, xmax=mean, loc = loc, scale = scale)
+        
+        profit_distribution = stats.beta.pdf(x, a=a, b=b, loc = loc, scale = scale)
