@@ -202,33 +202,99 @@ class Investor:
             
         return PTRR
     
-    def profit(self):
+class Invest:
+    
+    """
+    Takes the investor and adopts specified conditions (strategy, single_sum) to simulate the funds after n rounds
+    of investment.
+    """
+    
+    def __init__(self, investor: Investor = None, strategy: str = "Neutral"):
+        
+        self.investor = investor
+        self.strategy = strategy
+    
+    
+    def Invest_funds(self, single_sum: float=130, strategy: str = "Neutral", n: int = 25):
         
         """
-        Returns the beta distributed profit value according to the low, high and mean values from the initial 
-        profit tuple and strategy implemented.
-        
-        Depending on the model:
-        - Greedy
-            The profit curve spreads out towards higher values, proportionally on the funds, i.e.:
-            high = (funds / initial_funds) * high
-            
-            The risk curve shifts towards higher values depending on the profit curve and remains left skewed.
+        Returns the funds after n rounds of investment.
         """
+        
         
         # Compute parameter 'b' to provide mode = mean
-        
-        loc = profit[1]
-        scale = (profit[2] - profit[1])
-        mean = profit[0]
-        
         def var_b(a, xmax, loc, scale):
     
             var_b = 1 + (a - 1) * (scale + loc - xmax) / (xmax - loc)
     
             return var_b
         
-        a = a
-        b = var_b(a, xmax=mean, loc = loc, scale = scale)
+        # initialize shape parameters of the distribution
         
-        profit_distribution = stats.beta.pdf(x, a=a, b=b, loc = loc, scale = scale)
+        # Profit parameters
+        loc_profit = self.investor.profit[1]
+        scale_profit = (self.investor.profit[2] - self.investor.profit[1])
+        mode_profit = self.investor.profit[0]
+        
+        # Risk parameters
+        loc_risk = self.investor.risk[1]
+        scale_risk = (self.investor.risk[2] - self.investor.risk[1])
+        mode_risk = self.investor.risk[0]
+        
+        a = 10
+        b_risk = var_b(a, xmax=mode_risk, loc = loc, scale = scale)
+        b_profit = var_b(a, xmax=mode_profit, loc = loc, scale = scale)
+        
+        # Invest according to the adopted strategy
+        
+        if self.strategy == "Neutral":
+            
+            
+            # Initialize the parameters
+            losses_gains = []
+            rounds_passed = 0
+            initial_invest_funds = self.investor.initial_funds * self.investor.margin
+            fund_track = [self.investor.initial_funds]
+
+            def update_funds_track(fund_track, losses_gains):
+                for f in losses_gains:
+                    fund_track.append(fund_track[-1] + f)
+                
+                return fund_track
+            
+            while rounds_passed <= n:
+
+                # Get the number of single investments from invest_funds sum
+                
+                # if the number of rounds is greater than remaining, then trim
+                num_rounds = np.floor((total_invest_funds * self.investor.margin) / single_sum)
+                 
+                if rounds_passed+num_rounds > n:
+                    # trim according to n
+                    rem = n - (rounds_passed+num_rounds)
+                    num_rounds = rem
+                    
+                # compute the losses_gains
+                profit_distribution = stats.beta.rvs(x, a=a, b=b_risk, loc = loc_profit,
+                                                     scale = scale_profit, size = num_rounds)
+                risk_distribution = -stats.beta.rvs(x, a=a, b=b_risk, loc = loc_risk,
+                                                   scale = scale_risk, size = num_rounds)
+                choice = np.random.choice([0, 1], size = num_rounds, p = [1-self.investor.luck, self.investor.luck])
+
+                # pick loss or gain
+                for i in range(len(choice)):
+                    if choice[i] == 0:
+                        new_loss = risk_distribution[i]
+                        losses_gains.append(new_loss)
+
+                    elif choice[i] == 1:
+                        new_gain = profit_distribution[i]
+                        losses_gains.append(new_gain)
+
+                losses_gains = (1 + losses_gains) * single_sum
+                
+                # Get the funds to invest
+                total_invest_funds += sum(losses_gains)
+                
+                # Update the funds_track
+                update_fund_track(fund_track, losses_gains)
