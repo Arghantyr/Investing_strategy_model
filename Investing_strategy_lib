@@ -298,3 +298,11 @@ class Invest:
                 
                 # Update the funds_track
                 update_fund_track(fund_track, losses_gains)
+                
+                #update the rounds_passed
+                rounds_passed += len(losses_gains)
+                
+            funds_number = pd.Series(list(range(1+n)))
+            funds_tracked = pd.DataFrame([fund_track]).set_index(pd.Index(funds_number))
+            
+            return funds_tracked
