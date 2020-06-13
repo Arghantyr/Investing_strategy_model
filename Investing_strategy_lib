@@ -242,8 +242,8 @@ class Invest:
         mode_risk = self.investor.risk[0]
         
         a = 10
-        b_risk = var_b(a, xmax=mode_risk, loc = loc, scale = scale)
-        b_profit = var_b(a, xmax=mode_profit, loc = loc, scale = scale)
+        b_risk = var_b(a, xmax=mode_risk, loc = loc_risk, scale = scale_risk)
+        b_profit = var_b(a, xmax=mode_profit, loc = loc_profit, scale = scale_profit)
         
         # Invest according to the adopted strategy
         
@@ -251,47 +251,49 @@ class Invest:
             
             
             # Initialize the parameters
-            losses_gains = []
             rounds_passed = 0
-            initial_invest_funds = self.investor.initial_funds * self.investor.margin
+            total_invest_funds = self.investor.initial_funds
             fund_track = [self.investor.initial_funds]
+            
 
-            def update_funds_track(fund_track, losses_gains):
+            def update_fund_track(fund_track, losses_gains):
                 for f in losses_gains:
                     fund_track.append(fund_track[-1] + f)
                 
                 return fund_track
             
-            while rounds_passed <= n:
-
-                # Get the number of single investments from invest_funds sum
+            while rounds_passed < n:
+                
+                losses_gains = np.array([])
                 
                 # if the number of rounds is greater than remaining, then trim
-                num_rounds = np.floor((total_invest_funds * self.investor.margin) / single_sum)
+                num_rounds = int(np.floor((total_invest_funds * self.investor.margin) / single_sum))
                  
-                if rounds_passed+num_rounds > n:
+                if rounds_passed+num_rounds >= n:
                     # trim according to n
-                    rem = n - (rounds_passed+num_rounds)
-                    num_rounds = rem
-                    
+                    num_rounds = n - rounds_passed
+                
+                
                 # compute the losses_gains
-                profit_distribution = stats.beta.rvs(x, a=a, b=b_risk, loc = loc_profit,
+                profit_distribution = stats.beta.rvs(a=a, b=b_profit, loc = loc_profit,
                                                      scale = scale_profit, size = num_rounds)
-                risk_distribution = -stats.beta.rvs(x, a=a, b=b_risk, loc = loc_risk,
+                risk_distribution = -stats.beta.rvs(a=a, b=b_risk, loc = loc_risk,
                                                    scale = scale_risk, size = num_rounds)
                 choice = np.random.choice([0, 1], size = num_rounds, p = [1-self.investor.luck, self.investor.luck])
 
+                
+                
                 # pick loss or gain
                 for i in range(len(choice)):
                     if choice[i] == 0:
                         new_loss = risk_distribution[i]
-                        losses_gains.append(new_loss)
+                        losses_gains = np.append(losses_gains, new_loss)
 
                     elif choice[i] == 1:
                         new_gain = profit_distribution[i]
-                        losses_gains.append(new_gain)
-
-                losses_gains = (1 + losses_gains) * single_sum
+                        losses_gains = np.append(losses_gains, new_gain)
+                
+                losses_gains = losses_gains * single_sum
                 
                 # Get the funds to invest
                 total_invest_funds += sum(losses_gains)
@@ -302,7 +304,7 @@ class Invest:
                 #update the rounds_passed
                 rounds_passed += len(losses_gains)
                 
-            funds_number = pd.Series(list(range(1+n)))
-            funds_tracked = pd.DataFrame([fund_track]).set_index(pd.Index(funds_number))
+            funds_number = pd.Series(list(range(n+1)))
+            funds_tracked = pd.DataFrame(fund_track).set_index(pd.Index(funds_number))
             
             return funds_tracked
