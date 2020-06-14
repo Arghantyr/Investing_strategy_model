@@ -3,46 +3,66 @@ class Investor:
     All the data about the investor.
     
     Takes information characteristic for the investor, i.e.: initial funds (unitless measure),
-    strategy (greedy, cautious, neutral), luck (50% at standard), risk, profit and creates an instance
-    of an investor
+    luck (50% at standard), risk, profit and creates an instance of an investor.
     
     Parameters:
     -----------------
     
-    strategy: str = "Neutral"
-        Defines investing strategy type, characteristic of an investor.
-        
-        Takes 3 values:
-        - Greedy:
-            1. Profit-to-Risk ratio (PTRR) drops with respect to gained funds.
-            2. Accepts different types of PTRR behaviour: linear, sigmoidal
-            3. Profit and Risk are more spread out.
-            4. Risk is right skewed (values are negative), the more the higher the Profit.
-               The Profit is left skewed.
-            
-        - Cautious:
-            1. PTRR is grows with respect to gained funds
-            2. Accepts different types of PTRR behaviour: linear, sigmoidal
-            3. Profit and Risk are narrower, the more, the higher the funds.
-            4. Risk is left skewed, Profit is right skewed.
-            
-        - Neutral:
-            1. PTRR is independent of the gained funds
-            2. Profit and Risk are symmetrically spread around their specific means.
-            3. The spread of Profit or Risk are independent.
-            
+    name: str
+        Name of the investors instance.
+    
     initial_funds: int = 1000
         Initial sum of money to be invested.
         
     luck: float = 0.5
         A collective paramater dependent on proper investment entry, investment exit. Must be a value
         from range (0,1)
-        
-    risk: tuple = (mean: float = 0.05, low: float = 0.045, high: float = 0.055)
-        Acceptable risk for each investment. Takes a tuple of risk values to produce a beta
-        distribution with mean, low and high values.
+    """
     
-    profit: tuple = (mean: float = 0.1, low: float = 0.09, high: float = 0.11)
+    def __init__(self, name: str, initial_funds: int=1000, luck: float=0.5):
+        
+        self.properties = None
+        self.name = name
+        self.initial_funds = initial_funds
+        self.luck = luck
+    
+    
+class Invest:
+    
+    """
+    Takes the investor and adopts specified conditions (strategy, single_sum, risk, profit)
+    to simulate the funds after n roundsof investment.
+    
+    Parameters:
+    -----------
+    
+    strategy: str = "Neutral"
+    Defines investing strategy type, characteristic of an investor.
+
+    Takes 3 values:
+    - Greedy:
+        1. Profit-to-Risk ratio (PTRR) drops with respect to gained funds.
+        2. Accepts different types of PTRR behaviour: linear, sigmoidal
+        3. Profit and Risk are more spread out.
+        4. Risk is right skewed (values are negative), the more the higher the Profit.
+           The Profit is left skewed.
+
+    - Cautious:
+        1. PTRR is grows with respect to gained funds
+        2. Accepts different types of PTRR behaviour: linear, sigmoidal
+        3. Profit and Risk are narrower, the more, the higher the funds.
+        4. Risk is left skewed, Profit is right skewed.
+
+    - Neutral:
+        1. PTRR is independent of the gained funds
+        2. Profit and Risk are symmetrically spread around their specific means.
+        3. The spread of Profit or Risk are independent.
+    
+    initial_risk: tuple = (mean: float = 0.05, low: float = 0.045, high: float = 0.055)
+    Acceptable risk for each investment. Takes a tuple of risk values to produce a beta
+    distribution with mean, low and high values.
+    
+    initial_profit: tuple = (mean: float = 0.1, low: float = 0.09, high: float = 0.11)
         Acceptable profit for each investment. Takes a tuple of profit values to produce a beta
         distribution with mean, low and high values.
     
@@ -51,30 +71,7 @@ class Investor:
         
     margin: float = 0.5
         Amount of money from the total funds not to be invested.
-   
-    Methods:
-    -----------------
-    
-    invest_funds(n: int = 25, rounds: int = 100):
-        Takes the value of investments and outputs the return of investment (ROI), final funds
-        (amount after n rounds of investment), plot with the median, quartile etc. fields
-        for the family of [rounds] investments.
-    
-    """
-    
-    
-    def __init__(self, name, initial_funds: int=1000, luck: float=0.5):
         
-        self.properties = None
-        self.name = name
-        self.initial_funds = initial_funds
-        self.luck = luck
-    
-class Invest:
-    
-    """
-    Takes the investor and adopts specified conditions (strategy, single_sum) to simulate the funds after n rounds
-    of investment.
     """
     
     def __init__(self, investor: Investor = None, strategy: str = "Neutral",
@@ -90,7 +87,7 @@ class Invest:
     
     # PTRR method for calculating Profit-to_Risk Ratio for arbitrary funds
     
-    def PTRR(self, funds: float, gamble_limit: float, model: str = "linear", drop: float = 0.001,
+    def PTRR(self, funds: float, cross_limit: float, model: str = "linear", drop: float = 0.001,
              limit: float = 1.0):
         
         """
@@ -106,10 +103,12 @@ class Invest:
             
         model: str = "linear" or "logistic"
             Model to calculate future PTRR:
-            - linear - use linear function; defaults to drop rate such that PTRR = 1 at gamble_limit
-            - logistic - use logistic function; defaults to drop rate such that PTRR = 0.5*initial PTRR at gamble_limit
+            - linear - use linear function; defaults to drop rate such that PTRR = 1 at cross_limit
+            - logistic - use logistic function; defaults to drop rate such that:
+                - PTRR = 0.5*PTRR_init at cross_limit   -   "Greedy"
+                - PTRR = PTRR_init + 0.5*(limit - PTRR_init) at cross_limit   -   "Cautious"
 
-        gamble_limit: float
+        cross_limit: float
             Value at which PTRR equals:
             - 1 - model: "linear"
             - 0.5 intial PTRR - model: "logistic"
@@ -118,7 +117,7 @@ class Invest:
             Drop rate coeficient for the logistic model.
             For values:
             - 0 < drop < 1 - stretches the curve along the funds axis, the more, the lower the value
-            - drop >= 1 - returns a step function with a jump at gamble_limit
+            - drop >= 1 - returns a step function with a jump at cross_limit
             
         limit: float = 1.0
             PTRR value to be reached by the model.
@@ -146,7 +145,7 @@ class Invest:
                 raise Exception("Invalid limit. Expected limit<profit/risk for 'Greedy' strategy.")
                 
             else:
-                change_coeff = - (PTRR_init - 1) / (gamble_limit - initial_funds)
+                change_coeff = - (PTRR_init - 1) / (cross_limit - initial_funds)
 
                 if funds <= initial_funds:
                     PTRR = PTRR_init
@@ -166,8 +165,8 @@ class Invest:
                             PTRR = limit
 
                     elif model == "logistic":
-                        PTRR_0 = - special.expit(drop * (initial_funds - gamble_limit - initial_funds))
-                        PTRR = PTRR_init + (PTRR_init - limit) * (- PTRR_0 - special.expit(drop * (funds - gamble_limit - initial_funds)))
+                        PTRR_0 = - special.expit(drop * (initial_funds - cross_limit - initial_funds))
+                        PTRR = PTRR_init + (PTRR_init - limit) * (- PTRR_0 - special.expit(drop * (funds - cross_limit - initial_funds)))
 
 
         elif self.strategy == "Cautious":
@@ -177,7 +176,7 @@ class Invest:
                 raise Exception("Invalid limit. Expected limit>profit/risk for 'Cautious' strategy.")
 
             else:
-                change_coeff = (PTRR_init - 1) / (gamble_limit - initial_funds)
+                change_coeff = (PTRR_init - 1) / (cross_limit - initial_funds)
 
                 if funds <= initial_funds:
                     PTRR = PTRR_init
@@ -197,8 +196,8 @@ class Invest:
                             PTRR = limit
 
                     elif model == "logistic":
-                        PTRR_0 = special.expit(drop * (initial_funds - gamble_limit - initial_funds))
-                        PTRR = PTRR_init + limit * (- PTRR_0 + special.expit(drop * (funds - gamble_limit - initial_funds)))
+                        PTRR_0 = special.expit(drop * (initial_funds - cross_limit - initial_funds))
+                        PTRR = PTRR_init + limit * (- PTRR_0 + special.expit(drop * (funds - cross_limit - initial_funds)))
 
 
         elif self.strategy == "Neutral":
