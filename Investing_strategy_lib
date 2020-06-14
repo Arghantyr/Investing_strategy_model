@@ -63,9 +63,7 @@ class Investor:
     """
     
     
-    def __init__(self, name, strategy: str="Neutral", initial_funds: int=1000, luck: float=0.5,
-                 risk: tuple=(0.05, 0.045, 0.055), profit: tuple=(0.1, 0.09, 0.11),
-                 single_sum: int=150, margin: float=0.5):
+    def __init__(self, name, initial_funds: int=1000, luck: float=0.5):
         
         self.properties = None
         self.name = name
@@ -80,6 +78,25 @@ class Investor:
         self.properties = dict([("strategy", self.strategy), ("initial_funds", self.initial_funds),
                                 ("luck", self.luck), ("risk", self.risk), ("profit", self.profit),
                                 ("single_sum", self.single_sum), ("margin", self.margin)])
+
+    
+class Invest:
+    
+    """
+    Takes the investor and adopts specified conditions (strategy, single_sum) to simulate the funds after n rounds
+    of investment.
+    """
+    
+    def __init__(self, investor: Investor = None, strategy: str = "Neutral",
+                 initial_risk: tuple=(0.05, 0.045, 0.055), initial_profit: tuple=(0.1, 0.09, 0.11),
+                 single_sum: int=150, margin: float=0.5):
+        
+        self.investor = investor
+        self.strategy = strategy
+        self.initial_risk = initial_risk
+        self.initial_profit = initial_profit
+        self.single_sum = single_sum
+        self.margin = margin
     
     # PTRR method for calculating Profit-to_Risk Ratio for arbitrary funds
     
@@ -88,7 +105,7 @@ class Investor:
         
         """
         Calculates the Profit-to-risk ratio under specified boundary conditions.
-        The default values corrrspond to the "Greedy" strategy, with two models available:
+        The default values correspond to the "Greedy" strategy, with two models available:
         linear and logistic.
 
         Parameters:
@@ -122,14 +139,14 @@ class Investor:
             
         """
 
-        initial_funds = self.initial_funds
-        profit = self.profit[0]
-        risk = self.risk[0]
+        initial_funds = self.investor.initial_funds
+        profit = self.initial_profit[0]
+        risk = self.initial_risk[0]
         strategy = self.strategy
         
         # Check for the properess of the input
 
-        PTRR_init = profit/risk
+        PTRR_init = initial_profit / initial_risk
         PTRR = None
         
         if strategy == "Greedy":
@@ -163,7 +180,7 @@ class Investor:
                         PTRR = PTRR_init + (PTRR_init - limit) * (- PTRR_0 - special.expit(drop * (funds - gamble_limit - initial_funds)))
 
 
-        elif strategy == "Cautious":
+        elif self.strategy == "Cautious":
             
             # Check for valid input calues
             if limit <= PTRR_init:
@@ -194,28 +211,15 @@ class Investor:
                         PTRR = PTRR_init + limit * (- PTRR_0 + special.expit(drop * (funds - gamble_limit - initial_funds)))
 
 
-        elif strategy == "Neutral":
+        elif self.strategy == "Neutral":
             PTRR = PTRR_init
             
         else:
             raise Exception("Invalid strategy. Only 'Greedy', 'Neutral' and 'Cautious' accepted.")
             
-        return PTRR
+        return PTRR    
     
-class Invest:
-    
-    """
-    Takes the investor and adopts specified conditions (strategy, single_sum) to simulate the funds after n rounds
-    of investment.
-    """
-    
-    def __init__(self, investor: Investor = None, strategy: str = "Neutral"):
-        
-        self.investor = investor
-        self.strategy = strategy
-    
-    
-    def Invest_funds(self, single_sum: float=130, strategy: str = "Neutral", n: int = 25):
+    def Invest_funds(self, strategy: str = "Neutral", n: int = 25):
         
         """
         Returns the funds after n rounds of investment.
@@ -232,18 +236,19 @@ class Invest:
         # initialize shape parameters of the distribution
         
         # Profit parameters
-        loc_profit = self.investor.profit[1]
-        scale_profit = (self.investor.profit[2] - self.investor.profit[1])
-        mode_profit = self.investor.profit[0]
+        loc_profit = self.initial_profit[1]
+        scale_profit = (self.initial_profit[2] - self.initial_profit[1])
+        mode_profit = self.initial_profit[0]
         
         # Risk parameters
-        loc_risk = self.investor.risk[1]
-        scale_risk = (self.investor.risk[2] - self.investor.risk[1])
-        mode_risk = self.investor.risk[0]
+        loc_risk = self.initial_risk[1]
+        scale_risk = (self.initial_risk[2] - self.initial_risk[1])
+        mode_risk = self.initial_risk[0]
         
         a = 10
         b_risk = var_b(a, xmax=mode_risk, loc = loc_risk, scale = scale_risk)
         b_profit = var_b(a, xmax=mode_profit, loc = loc_profit, scale = scale_profit)
+        
         
         # Invest according to the adopted strategy
         
@@ -267,7 +272,7 @@ class Invest:
                 losses_gains = np.array([])
                 
                 # if the number of rounds is greater than remaining, then trim
-                num_rounds = int(np.floor((total_invest_funds * self.investor.margin) / single_sum))
+                num_rounds = int(np.floor((total_invest_funds * self.margin) / self.single_sum))
                  
                 if rounds_passed+num_rounds >= n:
                     # trim according to n
@@ -293,7 +298,7 @@ class Invest:
                         new_gain = profit_distribution[i]
                         losses_gains = np.append(losses_gains, new_gain)
                 
-                losses_gains = losses_gains * single_sum
+                losses_gains = losses_gains * self.single_sum
                 
                 # Get the funds to invest
                 total_invest_funds += sum(losses_gains)
@@ -305,6 +310,62 @@ class Invest:
                 rounds_passed += len(losses_gains)
                 
             funds_number = pd.Series(list(range(n+1)))
-            funds_tracked = pd.DataFrame(fund_track).set_index(pd.Index(funds_number))
+            neutral_funds = pd.DataFrame(fund_track).set_index(pd.Index(funds_number))
             
-            return funds_tracked
+            return neutral_funds
+        
+        elif self.strategy == "Greedy":
+            
+            # Initialize the parameters
+            rounds_passed = 0
+            total_invest_funds = self.investor.initial_funds * self.margin
+            fund_track = [self.investor.initial_funds]
+            
+            while rounds_passed < n:
+                
+                losses_gains = None
+                
+                # Change profit/loss parameters with respect to the current funds
+                
+                # Profit parameters
+                loc_profit = self.investor.profit[1]
+                scale_profit = (self.investor.profit[2] - self.investor.profit[1])
+                mode_profit = self.investor.profit[0]
+
+                # Risk parameters
+                loc_risk = self.investor.risk[1]
+                scale_risk = (self.investor.risk[2] - self.investor.risk[1])
+                mode_risk = self.investor.risk[0]
+
+                a = 10
+                b_risk = var_b(a, xmax=mode_risk, loc = loc_risk, scale = scale_risk)
+                b_profit = var_b(a, xmax=mode_profit, loc = loc_profit, scale = scale_profit)
+
+                # compute the losses_gains
+                profit_value = stats.beta.rvs(a=a, b=b_profit, loc = loc_profit, scale = scale_profit)
+                risk_value = -stats.beta.rvs(a=a, b=b_risk, loc = loc_risk, scale = scale_risk)
+                choice = np.random.choice([0, 1], size = num_rounds, p = [1-self.investor.luck, self.investor.luck])
+
+                # pick loss or gain
+                if choice[i] == 0:
+                    losses_gains = risk_value
+
+                else:
+                    losses_gains = profit_value
+                
+                # Transform fractional loss/gain into fund value
+                losses_gains = losses_gains * self.single_sum
+                
+                # Get the funds to invest
+                total_invest_funds += losses_gains
+                
+                # Update the funds_track
+                update_fund_track(fund_track, losses_gains)
+                
+                #update the rounds_passed
+                rounds_passed += 1
+                
+            funds_number = pd.Series(list(range(n+1)))
+            greedy_funds = pd.DataFrame(fund_track).set_index(pd.Index(funds_number))
+            
+            return greedy_funds
