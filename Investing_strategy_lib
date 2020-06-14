@@ -129,8 +129,8 @@ class Invest:
         """
 
         initial_funds = self.investor.initial_funds
-        profit = self.initial_profit[0]
-        risk = self.initial_risk[0]
+        initial_profit = self.initial_profit[0]
+        initial_risk = self.initial_risk[0]
         strategy = self.strategy
         
         # Check for the properess of the input
@@ -206,9 +206,51 @@ class Invest:
         else:
             raise Exception("Invalid strategy. Only 'Greedy', 'Neutral' and 'Cautious' accepted.")
             
-        return PTRR    
+        return PTRR
     
-    def Invest_funds(self, strategy: str = "Neutral", n: int = 25):
+    def funds_shift(self, funds: float, l_rate: float, g_rate: float):
+        """
+        Computes the shift of profit and risk values based on current funds.
+        
+        Parameters:
+        -----------
+        
+        funds: float = None
+            Funds for which the shift will be computer
+        
+        l_rate: float
+            Rate for the change in losses shift with respect to funds per 1000.
+            
+        g_rate: float
+            Rate for the change in gains shift with respect to funds per 1000.
+        
+        
+        Returns:
+        --------
+        
+        Tuple in format (losses_shift, gains_shift)
+        
+        """
+        
+        
+        if self.stategy == "Neutral":
+            value = (0,0)
+        
+        elif self.strategy == "Greedy":
+            l_shift = l_rate * funds
+            g_shift = g_rate * funds
+            
+            value = (l_shift, g_shift)
+            
+        elif self.strategy == "Cautious":
+            l_shift = -l_rate * funds
+            g_shift = g_rate * funds
+            
+            value = (l_shift, g_shift)
+        
+        return value
+    
+    def Invest_funds(self, n: int, cross_limit: float, model: str = "linear", drop: float = 0.001, limit: float = 1.0):
         
         """
         Returns the funds after n rounds of investment.
@@ -312,11 +354,22 @@ class Invest:
             total_invest_funds = self.investor.initial_funds * self.margin
             fund_track = [self.investor.initial_funds]
             
+            # Profit parameters
+            loc_profit = self.initial_profit[1]
+            scale_profit = (self.initial_profit[2] - self.initial_profit[1])
+            mode_profit = self.initial_profit[0]
+
+            # Risk parameters
+            loc_risk = self.initial_risk[1]
+            scale_risk = (self.initial_risk[2] - self.initial_risk[1])
+            mode_risk = self.initial_risk[0]
+            
             while rounds_passed < n:
                 
                 losses_gains = None
                 
                 # Change profit/loss parameters with respect to the current funds
+                current_PTRR = self.PTRR(fund_track, cross_limit=cross_limit, model=model, drop=drop, limit=limit)
                 
                 # Profit parameters
                 loc_profit = self.initial_profit[1]
@@ -325,8 +378,8 @@ class Invest:
 
                 # Risk parameters
                 loc_risk = self.initial_risk[1]
-                scale_risk = (self.initial_risk[2] - self.initial_risk[1])
-                mode_risk = self.initial_risk[0]
+                mode_risk = self.initial_risk[0] / current_PTRR
+                scale_risk = (1.1*mode_risk - self.initial_risk[1])
 
                 a = 10
                 b_risk = var_b(a, xmax=mode_risk, loc = loc_risk, scale = scale_risk)
