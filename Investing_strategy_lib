@@ -215,8 +215,8 @@ class Invest:
         Parameters:
         -----------
         
-        funds: float = None
-            Funds for which the shift will be computer
+        funds: float
+            Funds for which the shift will be computed.
         
         l_rate: float
             Rate for the change in losses shift with respect to funds per 1000.
@@ -243,12 +243,56 @@ class Invest:
             value = (l_shift, g_shift)
             
         elif self.strategy == "Cautious":
-            l_shift = -l_rate * funds
-            g_shift = g_rate * funds
+            value = (0,0)
+        
+        return value
+    
+    def outcome_shift(self, num_outcomes: int, l_rate: float, g_rate: float):
+        """
+        Computes the shift of profit and risk values based on outcome of the transaction.
+        
+        Parameters:
+        -----------
+        
+        num_outcomes: int
+            Number of consecutive outcomes of the last transactions.
+        
+        l_rate: float
+            Rate for the change in losses shift with respect to funds per 1000.
+            For strategy = "Greedy" l_rate > g_rate.
+            
+        g_rate: float
+            Rate for the change in gains shift with respect to funds per 1000.
+            For strategy = "Greedy" g_rate < l_rate.
+        
+        Returns:
+        --------
+        
+        Tuple in format (losses_shift, gains_shift)
+        """
+        
+        # Check if the rates respect the condition for "Greedy" strategy
+        if self.strategy == "Greedy":
+            if l_rate >= g_rate:
+                raise ValueError("Invalid rates. l_rate > g_rate for strategy = 'Greedy'.")
+        
+        if self.stategy == "Neutral":
+            value = (0,0)
+        
+        elif self.strategy == "Greedy":
+            l_shift = l_rate * num_outcomes
+            g_shift = g_rate * num_outcomes
+            
+            value = (l_shift, g_shift)
+            
+        elif self.strategy == "Cautious":
+            l_shift = -l_rate * num_outcomes
+            g_shift = g_rate * num_outcomes
             
             value = (l_shift, g_shift)
         
-        return value
+        return value        
+        
     
     def Invest_funds(self, n: int, cross_limit: float, model: str = "linear", drop: float = 0.001, limit: float = 1.0):
         
