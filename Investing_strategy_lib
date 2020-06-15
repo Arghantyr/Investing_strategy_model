@@ -247,15 +247,19 @@ class Invest:
         
         return value
     
-    def outcome_spread(self, funds: float, l_rate: float, g_rate: float):
+    def outcome_spread(self, num_outcomes: tuple, l_rate: float, g_rate: float):
         """
         Computes the spread of profit and risk values based on the number of consecutive outcomes.
         
         Parameters:
         -----------
         
-        funds: float
-            Funds for which the spread will be computed.
+        num_outcomes: tuple
+            Tuple with information on type and number of consecutive outcomes of the last transactions.
+            Format: (str, int)
+            Example:
+            ("l", 5) - 5 consecutive losses
+            ("g", 3) - 3 consecutive gains
         
         l_rate: float
             Rate for the change in losses spread with respect to the number of consecutive outcomes of one type.
@@ -325,15 +329,19 @@ class Invest:
         
         return value
     
-    def outcome_shift(self, num_outcomes: int, l_rate: float, g_rate: float):
+    def outcome_shift(self, num_outcomes: tuple, l_rate: float, g_rate: float):
         """
         Computes the shift of profit and risk values based on outcome of the transaction.
         
         Parameters:
         -----------
         
-        num_outcomes: int
-            Number of consecutive outcomes of the last transactions.
+        num_outcomes: tuple
+            Tuple with information on type and number of consecutive outcomes of the last transactions.
+            Format: (str, int)
+            Example:
+            ("l", 5) - 5 consecutive losses
+            ("g", 3) - 3 consecutive gains
         
         l_rate: float
             Rate for the change in losses shift with respect to consecutive number of losses.
@@ -476,6 +484,10 @@ class Invest:
             rounds_passed = 0
             total_invest_funds = self.investor.initial_funds * self.margin
             fund_track = [self.investor.initial_funds]
+            outcome_shift = (0,0)
+            funds_spread = (0,0)
+            funds_shift = (0,0)
+            consecutive_losses_gains = ("l",0)
             
             # Profit parameters
             loc_profit = self.initial_profit[1]
@@ -488,6 +500,9 @@ class Invest:
             mode_risk = self.initial_risk[0]
             
             while rounds_passed < n:
+                
+                # Get the total shift:
+                total_shift_losses = self.outcome_shift() + self.funds_shift()
                 
                 losses_gains = None
                 
@@ -503,12 +518,11 @@ class Invest:
                 loc_risk = self.initial_risk[1]
                 mode_risk = self.initial_profit[0] / current_PTRR
                 scale_risk = (1.1*mode_risk - self.initial_risk[1])
-
+                
                 a = 10
                 b_risk = var_b(a, xmax=mode_risk, loc = loc_risk, scale = scale_risk)
                 b_profit = var_b(a, xmax=mode_profit, loc = loc_profit, scale = scale_profit)
                 
-                #print("a: {}\nb_risk: {}\nloc_risk: {}\nscale_risk: {}".format(a, b_risk, loc_risk, scale_risk))
 
                 # compute the losses_gains
                 profit_value = stats.beta.rvs(a=a, b=b_profit, loc = loc_profit, scale = scale_profit)
@@ -518,9 +532,22 @@ class Invest:
                 # pick loss or gain
                 if choice == 0:
                     losses_gains = -risk_value
+                    
+                    # Update the consecutive_losses_gains
+                    if consecutive_losses_gains[0] == "l":
+                        consecutive_losses_gains[1] += 1
+                    else:
+                        consecutive_losses_gains = ("l", 1)
 
                 else:
                     losses_gains = profit_value
+                    
+                    # Update the consecutive_losses_gains
+                    if consecutive_losses_gains[0] == "g":
+                        consecutive_losses_gains[1] += 1
+                    else:
+                        consecutive_losses_gains = ("g", 1)
+                    
                 
                 # Transform fractional loss/gain into fund value
                 losses_gains = losses_gains * self.single_sum
@@ -528,11 +555,10 @@ class Invest:
                 # Get the funds to invest
                 total_invest_funds += losses_gains
                 
-                # Update the funds_track
+                # Updates
                 update_fund_track(fund_track, losses_gains)
-                
-                #update the rounds_passed
                 rounds_passed += 1
+                
                 
             funds_number = pd.Series(list(range(n+1)))
             greedy_funds = pd.DataFrame(fund_track).set_index(pd.Index(funds_number))
