@@ -247,14 +247,14 @@ class Invest:
         
         return value
     
-    def outcome_spread(self, num_outcomes: tuple, l_rate: float, g_rate: float):
+    def outcome_spread(self, num_outcomes: list, l_rate: float, g_rate: float):
         """
         Computes the spread of profit and risk values based on the number of consecutive outcomes.
         
         Parameters:
         -----------
         
-        num_outcomes: tuple
+        num_outcomes: list
             Tuple with information on type and number of consecutive outcomes of the last transactions.
             Format: (str, int)
             Example:
@@ -329,14 +329,14 @@ class Invest:
         
         return value
     
-    def outcome_shift(self, num_outcomes: tuple, l_rate: float, g_rate: float):
+    def outcome_shift(self, num_outcomes: list, l_rate: float, g_rate: float):
         """
         Computes the shift of profit and risk values based on outcome of the transaction.
         
         Parameters:
         -----------
         
-        num_outcomes: tuple
+        num_outcomes: list
             Tuple with information on type and number of consecutive outcomes of the last transactions.
             Format: (str, int)
             Example:
@@ -367,16 +367,23 @@ class Invest:
             value = (0,0)
         
         elif self.strategy == "Greedy":
-            l_shift = l_rate * num_outcomes
-            g_shift = g_rate * num_outcomes
+            if num_outcomes[0] == "g":
+                l_shift = l_rate * num_outcomes[1]
+                g_shift = g_rate * num_outcomes[1]
             
-            value = (l_shift, g_shift)
+                value = (l_shift, g_shift)
+            else:
+                value = (0,0)
             
         elif self.strategy == "Cautious":
-            l_shift = -l_rate * num_outcomes
-            g_shift = g_rate * num_outcomes
+            if num_outcomes[0] == "l":
+                l_shift = -l_rate * num_outcomes[1]
+                value = (l_shift, 0)
+                
+            elif num_outcomes[0] == "g":
+                g_shift = g_rate * num_outcomes
+                value = (0, g_shift)
             
-            value = (l_shift, g_shift)
         
         return value        
         
@@ -502,7 +509,12 @@ class Invest:
             while rounds_passed < n:
                 
                 # Get the total shift:
-                total_shift_losses = self.outcome_shift() + self.funds_shift()
+                o_shift = self.outcome_shift(consecutive_losses_gains, l_rate=0.011, g_rate=0.01)
+                f_shift = self.funds_shift(fund_track[-1] - self.investor.initial_funds, l_rate=0.011, g_rate=0.01)
+                f_spread = self.funds_spread(fund_track[-1] - self.investor.initial_funds, l_rate=0.011, g_rate=0.01)
+                
+                total_shift_losses = o_shift[0] + f_shift[0]
+                total_shift_gains = o_shift[1] + f_shift[1]
                 
                 losses_gains = None
                 
@@ -510,19 +522,20 @@ class Invest:
                 current_PTRR = self.PTRR(fund_track, cross_limit=cross_limit, model=model, drop=drop, limit=limit)
                 
                 # Profit parameters
-                loc_profit = self.initial_profit[1]
-                scale_profit = (self.initial_profit[2] - self.initial_profit[1])
-                mode_profit = self.initial_profit[0]
+                loc_profit = self.initial_profit[1] + total_shift_gains
+                scale_profit = (self.initial_profit[2] - self.initial_profit[1]) + total_shift_gains + f_spread[1]
+                mode_profit = self.initial_profit[0] + total_shift_gains
 
                 # Risk parameters
                 loc_risk = self.initial_risk[1]
-                mode_risk = self.initial_profit[0] / current_PTRR
-                scale_risk = (1.1*mode_risk - self.initial_risk[1])
+                mode_risk = (self.initial_profit[0] / current_PTRR) + total_shift_losses
+                scale_risk = (self.initial_risk[2] - self.initial_risk[1]) + total_shift_losses
                 
                 a = 10
                 b_risk = var_b(a, xmax=mode_risk, loc = loc_risk, scale = scale_risk)
                 b_profit = var_b(a, xmax=mode_profit, loc = loc_profit, scale = scale_profit)
                 
+                print("b_risk:, {}, b_profit: {}".format(b_risk, b_profit))
 
                 # compute the losses_gains
                 profit_value = stats.beta.rvs(a=a, b=b_profit, loc = loc_profit, scale = scale_profit)
@@ -537,7 +550,7 @@ class Invest:
                     if consecutive_losses_gains[0] == "l":
                         consecutive_losses_gains[1] += 1
                     else:
-                        consecutive_losses_gains = ("l", 1)
+                        consecutive_losses_gains = ["l", 1]
 
                 else:
                     losses_gains = profit_value
@@ -546,7 +559,7 @@ class Invest:
                     if consecutive_losses_gains[0] == "g":
                         consecutive_losses_gains[1] += 1
                     else:
-                        consecutive_losses_gains = ("g", 1)
+                        consecutive_losses_gains = ["g", 1]
                     
                 
                 # Transform fractional loss/gain into fund value
