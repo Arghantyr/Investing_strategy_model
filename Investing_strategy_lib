@@ -87,7 +87,7 @@ class Invest:
     
     # PTRR method for calculating Profit-to_Risk Ratio for arbitrary funds
     
-    def PTRR(self, funds: float, cross_limit: float, model: str = "linear", drop: float = 0.001,
+    def PTRR(self, funds: list, cross_limit: float, model: str = "linear", drop: float = 0.001,
              limit: float = 1.0):
         
         """
@@ -147,12 +147,12 @@ class Invest:
             else:
                 change_coeff = - (PTRR_init - 1) / (cross_limit - initial_funds)
 
-                if funds <= initial_funds:
+                if funds[-1] <= initial_funds:
                     PTRR = PTRR_init
                 else:
                     if model == "linear":
 
-                        formula = PTRR_init + change_coeff*(funds - initial_funds)
+                        formula = PTRR_init + change_coeff*(funds[-1] - initial_funds)
 
                         # Set the limit
                         if formula >= PTRR_init:
@@ -166,7 +166,7 @@ class Invest:
 
                     elif model == "logistic":
                         PTRR_0 = - special.expit(drop * (initial_funds - cross_limit - initial_funds))
-                        PTRR = PTRR_init + (PTRR_init - limit) * (- PTRR_0 - special.expit(drop * (funds - cross_limit - initial_funds)))
+                        PTRR = PTRR_init + (PTRR_init - limit) * (- PTRR_0 - special.expit(drop * (funds[-1] - cross_limit - initial_funds)))
 
 
         elif self.strategy == "Cautious":
@@ -178,12 +178,12 @@ class Invest:
             else:
                 change_coeff = (PTRR_init - 1) / (cross_limit - initial_funds)
 
-                if funds <= initial_funds:
+                if funds[-1] <= initial_funds:
                     PTRR = PTRR_init
                 else:
                     if model == "linear":
 
-                        formula = PTRR_init + change_coeff*(funds - initial_funds)
+                        formula = PTRR_init + change_coeff*(funds[-1] - initial_funds)
 
                         # Set the limit
                         if formula <= PTRR_init:
@@ -197,7 +197,7 @@ class Invest:
 
                     elif model == "logistic":
                         PTRR_0 = special.expit(drop * (initial_funds - cross_limit - initial_funds))
-                        PTRR = PTRR_init + limit * (- PTRR_0 + special.expit(drop * (funds - cross_limit - initial_funds)))
+                        PTRR = PTRR_init + limit * (- PTRR_0 + special.expit(drop * (funds[-1] - cross_limit - initial_funds)))
 
 
         elif self.strategy == "Neutral":
@@ -270,6 +270,7 @@ class Invest:
         
         Tuple in format (losses_shift, gains_shift)
         """
+        
         
         # Check if the rates respect the condition for "Greedy" strategy
         if self.strategy == "Greedy":
@@ -422,21 +423,23 @@ class Invest:
 
                 # Risk parameters
                 loc_risk = self.initial_risk[1]
-                mode_risk = self.initial_risk[0] / current_PTRR
+                mode_risk = self.initial_profit[0] / current_PTRR
                 scale_risk = (1.1*mode_risk - self.initial_risk[1])
 
                 a = 10
                 b_risk = var_b(a, xmax=mode_risk, loc = loc_risk, scale = scale_risk)
                 b_profit = var_b(a, xmax=mode_profit, loc = loc_profit, scale = scale_profit)
+                
+                #print("a: {}\nb_risk: {}\nloc_risk: {}\nscale_risk: {}".format(a, b_risk, loc_risk, scale_risk))
 
                 # compute the losses_gains
                 profit_value = stats.beta.rvs(a=a, b=b_profit, loc = loc_profit, scale = scale_profit)
-                risk_value = -stats.beta.rvs(a=a, b=b_risk, loc = loc_risk, scale = scale_risk)
+                risk_value = stats.beta.rvs(a=a, b=b_risk, loc = loc_risk, scale = scale_risk)
                 choice = np.random.choice([0, 1], size = 1, p = [1-self.investor.luck, self.investor.luck])
 
                 # pick loss or gain
                 if choice == 0:
-                    losses_gains = risk_value
+                    losses_gains = -risk_value
 
                 else:
                     losses_gains = profit_value
