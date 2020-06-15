@@ -208,6 +208,84 @@ class Invest:
             
         return PTRR
     
+    def funds_spread(self, funds: float, l_rate: float, g_rate: float):
+        """
+        Computes the spread of profit and risk values based on current funds.
+        
+        Parameters:
+        -----------
+        
+        funds: float
+            Funds for which the spread will be computed.
+        
+        l_rate: float
+            Rate for the change in losses spread with respect to funds per 1000.
+            
+        g_rate: float
+            Rate for the change in gains spread with respect to funds per 1000.
+        
+        
+        Returns:
+        --------
+        
+        Tuple in format (losses_spread, gains_spread)
+        
+        """
+        
+        
+        if self.strategy == "Neutral":
+            value = (0,0)
+        
+        elif self.strategy == "Greedy":
+            l_spread = 0.001 * l_rate * funds
+            g_spread = 0.001 * g_rate * funds
+            
+            value = (l_spread, g_spread)
+            
+        elif self.strategy == "Cautious":
+            value = (0,0)
+        
+        return value
+    
+    def outcome_spread(self, funds: float, l_rate: float, g_rate: float):
+        """
+        Computes the spread of profit and risk values based on the number of consecutive outcomes.
+        
+        Parameters:
+        -----------
+        
+        funds: float
+            Funds for which the spread will be computed.
+        
+        l_rate: float
+            Rate for the change in losses spread with respect to the number of consecutive outcomes of one type.
+            
+        g_rate: float
+            Rate for the change in gains spread with respect to the number of consecutive outcomes of one type.
+        
+        
+        Returns:
+        --------
+        
+        Tuple in format (losses_spread, gains_spread)
+        
+        """
+        
+        
+        if self.strategy == "Neutral":
+            value = (0,0)
+        
+        elif self.strategy == "Greedy":
+            value = (0,0)
+            
+        elif self.strategy == "Cautious":
+            l_spread = 2**(-l_rate * funds)
+            g_spread = 2**(-g_rate * funds)
+            
+            value = (l_spread, g_spread)
+        
+        return value
+    
     def funds_shift(self, funds: float, l_rate: float, g_rate: float):
         """
         Computes the shift of profit and risk values based on current funds.
@@ -233,12 +311,12 @@ class Invest:
         """
         
         
-        if self.stategy == "Neutral":
+        if self.strategy == "Neutral":
             value = (0,0)
         
         elif self.strategy == "Greedy":
-            l_shift = l_rate * funds
-            g_shift = g_rate * funds
+            l_shift = 0.001 * l_rate * funds
+            g_shift = 0.001 * g_rate * funds
             
             value = (l_shift, g_shift)
             
@@ -258,11 +336,11 @@ class Invest:
             Number of consecutive outcomes of the last transactions.
         
         l_rate: float
-            Rate for the change in losses shift with respect to funds per 1000.
+            Rate for the change in losses shift with respect to consecutive number of losses.
             For strategy = "Greedy" l_rate > g_rate.
             
         g_rate: float
-            Rate for the change in gains shift with respect to funds per 1000.
+            Rate for the change in gains shift with respect to consecutive number of gains.
             For strategy = "Greedy" g_rate < l_rate.
         
         Returns:
@@ -274,10 +352,10 @@ class Invest:
         
         # Check if the rates respect the condition for "Greedy" strategy
         if self.strategy == "Greedy":
-            if l_rate >= g_rate:
+            if l_rate <= g_rate:
                 raise ValueError("Invalid rates. l_rate > g_rate for strategy = 'Greedy'.")
         
-        if self.stategy == "Neutral":
+        if self.strategy == "Neutral":
             value = (0,0)
         
         elif self.strategy == "Greedy":
