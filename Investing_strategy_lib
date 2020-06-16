@@ -208,7 +208,7 @@ class Invest:
             
         return PTRR
     
-    def funds_spread(self, funds: float, l_rate: float, g_rate: float):
+    def funds_spread(self, funds: float, initial_funds: float, l_rate: float, g_rate: float):
         """
         Computes the spread of profit and risk values based on current funds.
         
@@ -217,6 +217,9 @@ class Invest:
         
         funds: float
             Funds for which the spread will be computed.
+            
+        initial_funds: float
+            Funds at the beginning of the investment process.
         
         l_rate: float
             Rate for the change in losses spread with respect to funds per 1000.
@@ -232,17 +235,23 @@ class Invest:
         
         """
         
-        
-        if self.strategy == "Neutral":
-            value = (0,0)
-        
-        elif self.strategy == "Greedy":
-            l_spread = 0.001 * l_rate * funds
-            g_spread = 0.001 * g_rate * funds
+        if funds > initial_funds:
             
-            value = (l_spread, g_spread)
+            fund_diff = funds - initial_funds
             
-        elif self.strategy == "Cautious":
+            if self.strategy == "Neutral":
+                value = (0,0)
+
+            elif self.strategy == "Greedy":
+                l_spread = 0.001 * l_rate * fund_diff
+                g_spread = 0.001 * g_rate * fund_diff
+
+                value = (l_spread, g_spread)
+
+            elif self.strategy == "Cautious":
+                value = (0,0)
+                
+        else:
             value = (0,0)
         
         return value
@@ -290,7 +299,7 @@ class Invest:
         
         return value
     
-    def funds_shift(self, funds: float, l_rate: float, g_rate: float):
+    def funds_shift(self, funds: float, initial_funds: float, l_rate: float, g_rate: float):
         """
         Computes the shift of profit and risk values based on current funds.
         
@@ -299,6 +308,9 @@ class Invest:
         
         funds: float
             Funds for which the shift will be computed.
+            
+        initial_funds: float
+            Funds at the beginning of the investment process.
         
         l_rate: float
             Rate for the change in losses shift with respect to funds per 1000.
@@ -313,18 +325,23 @@ class Invest:
         Tuple in format (losses_shift, gains_shift)
         
         """
-        
-        
-        if self.strategy == "Neutral":
-            value = (0,0)
-        
-        elif self.strategy == "Greedy":
-            l_shift = 0.001 * l_rate * funds
-            g_shift = 0.001 * g_rate * funds
+        if funds > initial_funds:
             
-            value = (l_shift, g_shift)
+            fund_diff = funds - initial_funds
             
-        elif self.strategy == "Cautious":
+            if self.strategy == "Neutral":
+                value = (0,0)
+
+            elif self.strategy == "Greedy":
+                l_shift = 0.001 * l_rate * fund_diff
+                g_shift = 0.001 * g_rate * fund_diff
+
+                value = (l_shift, g_shift)
+
+            elif self.strategy == "Cautious":
+                value = (0,0)
+        
+        else:
             value = (0,0)
         
         return value
@@ -494,7 +511,8 @@ class Invest:
             outcome_shift = (0,0)
             funds_spread = (0,0)
             funds_shift = (0,0)
-            consecutive_losses_gains = ("l",0)
+            consecutive_losses_gains = ["l",0]
+            limit = 0.5
             
             # Profit parameters
             loc_profit = self.initial_profit[1]
@@ -508,10 +526,10 @@ class Invest:
             
             while rounds_passed < n:
                 
-                # Get the total shift:
-                o_shift = self.outcome_shift(consecutive_losses_gains, l_rate=0.011, g_rate=0.01)
-                f_shift = self.funds_shift(fund_track[-1] - self.investor.initial_funds, l_rate=0.011, g_rate=0.01)
-                f_spread = self.funds_spread(fund_track[-1] - self.investor.initial_funds, l_rate=0.011, g_rate=0.01)
+                # Get the shifts and spreads:
+                o_shift = self.outcome_shift(consecutive_losses_gains, l_rate=0.041, g_rate=0.04)
+                f_shift = self.funds_shift(fund_track[-1], self.investor.initial_funds, l_rate=0.11, g_rate=0.1)
+                f_spread = self.funds_spread(fund_track[-1], self.investor.initial_funds, l_rate=0.51, g_rate=0.5)
                 
                 total_shift_losses = o_shift[0] + f_shift[0]
                 total_shift_gains = o_shift[1] + f_shift[1]
@@ -527,21 +545,21 @@ class Invest:
                 mode_profit = self.initial_profit[0] + total_shift_gains
 
                 # Risk parameters
+                risk_proportion = self.initial_risk[2]/self.initial_risk[1]
                 loc_risk = self.initial_risk[1]
                 mode_risk = (self.initial_profit[0] / current_PTRR) + total_shift_losses
-                scale_risk = (self.initial_risk[2] - self.initial_risk[1]) + total_shift_losses
+                scale_risk = mode_risk * risk_proportion
                 
                 a = 10
                 b_risk = var_b(a, xmax=mode_risk, loc = loc_risk, scale = scale_risk)
                 b_profit = var_b(a, xmax=mode_profit, loc = loc_profit, scale = scale_profit)
-                
-                print("b_risk:, {}, b_profit: {}".format(b_risk, b_profit))
 
                 # compute the losses_gains
                 profit_value = stats.beta.rvs(a=a, b=b_profit, loc = loc_profit, scale = scale_profit)
                 risk_value = stats.beta.rvs(a=a, b=b_risk, loc = loc_risk, scale = scale_risk)
                 choice = np.random.choice([0, 1], size = 1, p = [1-self.investor.luck, self.investor.luck])
-
+                
+                
                 # pick loss or gain
                 if choice == 0:
                     losses_gains = -risk_value
@@ -577,3 +595,97 @@ class Invest:
             greedy_funds = pd.DataFrame(fund_track).set_index(pd.Index(funds_number))
             
             return greedy_funds
+        
+        elif self.strategy == "Cautious":
+            
+            # Initialize the parameters
+            rounds_passed = 0
+            total_invest_funds = self.investor.initial_funds * self.margin
+            fund_track = [self.investor.initial_funds]
+            outcome_shift = (0,0)
+            funds_spread = (0,0)
+            funds_shift = (0,0)
+            consecutive_losses_gains = ["l",0]
+            limit = 3
+            
+            # Profit parameters
+            loc_profit = self.initial_profit[1]
+            scale_profit = (self.initial_profit[2] - self.initial_profit[1])
+            mode_profit = self.initial_profit[0]
+
+            # Risk parameters
+            loc_risk = self.initial_risk[1]
+            scale_risk = (self.initial_risk[2] - self.initial_risk[1])
+            mode_risk = self.initial_risk[0]
+            
+            while rounds_passed < n:
+                
+                # Get the shifts and spreads:
+                o_shift = self.outcome_shift(consecutive_losses_gains, l_rate=0.041, g_rate=0.04)
+                f_shift = self.funds_shift(fund_track[-1], self.investor.initial_funds, l_rate=0.11, g_rate=0.1)
+                f_spread = self.funds_spread(fund_track[-1], self.investor.initial_funds, l_rate=0.51, g_rate=0.5)
+                
+                total_shift_losses = o_shift[0] + f_shift[0]
+                total_shift_gains = o_shift[1] + f_shift[1]
+                
+                losses_gains = None
+                
+                # Change profit/loss parameters with respect to the current funds
+                current_PTRR = self.PTRR(fund_track, cross_limit=cross_limit, model=model, drop=drop, limit=limit)
+                
+                # Profit parameters
+                loc_profit = self.initial_profit[1] + total_shift_gains
+                scale_profit = (self.initial_profit[2] - self.initial_profit[1]) + total_shift_gains + f_spread[1]
+                mode_profit = self.initial_profit[0] + total_shift_gains
+
+                # Risk parameters
+                risk_proportion = self.initial_risk[2]/self.initial_risk[1]
+                loc_risk = self.initial_risk[1]
+                mode_risk = (self.initial_profit[0] / current_PTRR) + total_shift_losses
+                scale_risk = mode_risk * risk_proportion
+                
+                a = 10
+                b_risk = var_b(a, xmax=mode_risk, loc = loc_risk, scale = scale_risk)
+                b_profit = var_b(a, xmax=mode_profit, loc = loc_profit, scale = scale_profit)
+
+                # compute the losses_gains
+                profit_value = stats.beta.rvs(a=a, b=b_profit, loc = loc_profit, scale = scale_profit)
+                risk_value = stats.beta.rvs(a=a, b=b_risk, loc = loc_risk, scale = scale_risk)
+                choice = np.random.choice([0, 1], size = 1, p = [1-self.investor.luck, self.investor.luck])
+                
+                
+                # pick loss or gain
+                if choice == 0:
+                    losses_gains = -risk_value
+                    
+                    # Update the consecutive_losses_gains
+                    if consecutive_losses_gains[0] == "l":
+                        consecutive_losses_gains[1] += 1
+                    else:
+                        consecutive_losses_gains = ["l", 1]
+
+                else:
+                    losses_gains = profit_value
+                    
+                    # Update the consecutive_losses_gains
+                    if consecutive_losses_gains[0] == "g":
+                        consecutive_losses_gains[1] += 1
+                    else:
+                        consecutive_losses_gains = ["g", 1]
+                    
+                
+                # Transform fractional loss/gain into fund value
+                losses_gains = losses_gains * self.single_sum
+                
+                # Get the funds to invest
+                total_invest_funds += losses_gains
+                
+                # Updates
+                update_fund_track(fund_track, losses_gains)
+                rounds_passed += 1
+                
+                
+            funds_number = pd.Series(list(range(n+1)))
+            cautious_funds = pd.DataFrame(fund_track).set_index(pd.Index(funds_number))
+            
+            return cautious_funds
