@@ -292,10 +292,9 @@ class Invest:
             value = (0,0)
             
         elif self.strategy == "Cautious":
-            l_spread = 2**(-l_rate * funds)
-            g_spread = 2**(-g_rate * funds)
+            l_spread = 2**(-l_rate * (num_outcomes[1] - 1))
             
-            value = (l_spread, g_spread)
+            value = (l_spread, 1)
         
         return value
     
@@ -395,11 +394,11 @@ class Invest:
         elif self.strategy == "Cautious":
             if num_outcomes[0] == "l":
                 l_shift = -l_rate * num_outcomes[1]
-                value = (l_shift, 0)
+                value = (l_shift, l_shift)
                 
             elif num_outcomes[0] == "g":
-                g_shift = g_rate * num_outcomes
-                value = (0, g_shift)
+                g_shift = g_rate * num_outcomes[1]
+                value = (g_shift, g_shift)
             
         
         return value        
@@ -611,6 +610,7 @@ class Invest:
             # Profit parameters
             loc_profit = self.initial_profit[1]
             scale_profit = (self.initial_profit[2] - self.initial_profit[1])
+            initial_profit_spread = (self.initial_profit[2] - self.initial_profit[1])
             mode_profit = self.initial_profit[0]
 
             # Risk parameters
@@ -622,11 +622,14 @@ class Invest:
                 
                 # Get the shifts and spreads:
                 o_shift = self.outcome_shift(consecutive_losses_gains, l_rate=0.041, g_rate=0.04)
-                f_shift = self.funds_shift(fund_track[-1], self.investor.initial_funds, l_rate=0.11, g_rate=0.1)
-                f_spread = self.funds_spread(fund_track[-1], self.investor.initial_funds, l_rate=0.51, g_rate=0.5)
+                o_spread = self.outcome_spread(consecutive_losses_gains, l_rate=0.05, g_rate=0.50)
                 
-                total_shift_losses = o_shift[0] + f_shift[0]
-                total_shift_gains = o_shift[1] + f_shift[1]
+                if consecutive_losses_gains[0] == "l":
+                    current_spread = o_spread[0]
+                    current_shift = o_shift[0]
+                elif consecutive_losses_gains[0] == "g":
+                    current_spread = o_spread[1]
+                    current_shift = o_shift[1]
                 
                 losses_gains = None
                 
@@ -634,15 +637,35 @@ class Invest:
                 current_PTRR = self.PTRR(fund_track, cross_limit=cross_limit, model=model, drop=drop, limit=limit)
                 
                 # Profit parameters
-                loc_profit = self.initial_profit[1] + total_shift_gains
-                scale_profit = (self.initial_profit[2] - self.initial_profit[1]) + total_shift_gains + f_spread[1]
-                mode_profit = self.initial_profit[0] + total_shift_gains
+                profit_scale_mode_proportion = self.initial_profit[2]/self.initial_profit[0]
+                profit_loc_mode_proportion = self.initial_profit[1]/self.initial_profit[0]
+                
+                # Winning scenario
+                
+                if consecutive_losses_gains[0] == "g":
+                    mode_profit = self.initial_profit[0]
+                    loc_profit = self.initial_profit[1]
+                    scale_profit = profit_scale_mode_proportion * mode_profit + current_shift
+                    
+                elif consecutive_losses_gains[0] == "l":
+                    if self.initial_profit[0] + current_shift <= 0.01:
+                        mode_profit = 0.01
+                        loc_profit = mode_profit * profit_loc_mode_proportion
+                        scale_profit = mode_profit * profit_scale_mode_proportion
+                        
+                    else:
+                        mode_profit = self.initial_profit[0] + current_shift
+                        loc_profit = mode_profit - initial_profit_spread * 0.5 * current_spread
+                        scale_profit = mode_profit + initial_profit_spread * 0.5 * current_spread
+                        
 
                 # Risk parameters
-                risk_proportion = self.initial_risk[2]/self.initial_risk[1]
-                loc_risk = self.initial_risk[1]
-                mode_risk = (self.initial_profit[0] / current_PTRR) + total_shift_losses
-                scale_risk = mode_risk * risk_proportion
+                risk_scale_mode_proportion = self.initial_risk[2]/self.initial_risk[0]
+                risk_loc_mode_proportion = self.initial_risk[1]/self.initial_risk[0]
+                
+                mode_risk = mode_profit / current_PTRR
+                loc_risk = mode_risk * risk_loc_mode_proportion * current_spread
+                scale_risk = mode_risk * risk_scale_mode_proportion * current_spread
                 
                 a = 10
                 b_risk = var_b(a, xmax=mode_risk, loc = loc_risk, scale = scale_risk)
@@ -652,8 +675,7 @@ class Invest:
                 profit_value = stats.beta.rvs(a=a, b=b_profit, loc = loc_profit, scale = scale_profit)
                 risk_value = stats.beta.rvs(a=a, b=b_risk, loc = loc_risk, scale = scale_risk)
                 choice = np.random.choice([0, 1], size = 1, p = [1-self.investor.luck, self.investor.luck])
-                
-                
+                                
                 # pick loss or gain
                 if choice == 0:
                     losses_gains = -risk_value
@@ -672,7 +694,6 @@ class Invest:
                         consecutive_losses_gains[1] += 1
                     else:
                         consecutive_losses_gains = ["g", 1]
-                    
                 
                 # Transform fractional loss/gain into fund value
                 losses_gains = losses_gains * self.single_sum
