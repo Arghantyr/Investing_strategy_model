@@ -103,3 +103,50 @@ class Strategy:
             value = (l_spread, 1)
         
         return value
+    
+    def funds_shift(self, funds: float, initial_funds: float, l_rate: float, g_rate: float):
+        """
+        Computes the shift of profit and risk values based on current funds.
+        
+        Parameters:
+        -----------
+        
+        funds: float
+            Funds for which the shift will be computed.
+            
+        initial_funds: float
+            Funds at the beginning of the investment process.
+        
+        l_rate: float
+            Rate for the change in losses shift with respect to funds per 1000.
+            
+        g_rate: float
+            Rate for the change in gains shift with respect to funds per 1000.
+        
+        
+        Returns:
+        --------
+        
+        Tuple in format (losses_shift, gains_shift)
+        
+        """
+        if funds > initial_funds:
+            
+            fund_diff = funds - initial_funds
+            
+            if self.strategy == "Neutral":
+                value = (0,0)
+
+            elif self.strategy == "Greedy":
+                l_shift = 0.001 * l_rate * fund_diff
+                g_shift = 0.001 * g_rate * fund_diff
+
+                value = (l_shift, g_shift)
+
+            elif self.strategy == "Cautious":
+                value = (0,0)
+        
+        else:
+            value = (0,0)
+        
+        return value
