@@ -150,3 +150,61 @@ class Strategy:
             value = (0,0)
         
         return value
+    
+    def outcome_shift(self, num_outcomes: list, l_rate: float, g_rate: float):
+        """
+        Computes the shift of profit and risk values based on outcome of the transaction.
+        
+        Parameters:
+        -----------
+        
+        num_outcomes: list
+            Tuple with information on type and number of consecutive outcomes of the last transactions.
+            Format: (str, int)
+            Example:
+            ("l", 5) - 5 consecutive losses
+            ("g", 3) - 3 consecutive gains
+        
+        l_rate: float
+            Rate for the change in losses shift with respect to consecutive number of losses.
+            For strategy = "Greedy" l_rate > g_rate.
+            
+        g_rate: float
+            Rate for the change in gains shift with respect to consecutive number of gains.
+            For strategy = "Greedy" g_rate < l_rate.
+        
+        Returns:
+        --------
+        
+        Tuple in format (losses_shift, gains_shift)
+        """
+        
+        
+        # Check if the rates respect the condition for "Greedy" strategy
+        if self.strategy == "Greedy":
+            if l_rate <= g_rate:
+                raise ValueError("Invalid rates. l_rate > g_rate for strategy = 'Greedy'.")
+        
+        if self.strategy == "Neutral":
+            value = (0,0)
+        
+        elif self.strategy == "Greedy":
+            if num_outcomes[0] == "g":
+                l_shift = l_rate * num_outcomes[1]
+                g_shift = g_rate * num_outcomes[1]
+            
+                value = (l_shift, g_shift)
+            else:
+                value = (0,0)
+            
+        elif self.strategy == "Cautious":
+            if num_outcomes[0] == "l":
+                l_shift = -l_rate * num_outcomes[1]
+                value = (l_shift, l_shift)
+                
+            elif num_outcomes[0] == "g":
+                g_shift = g_rate * num_outcomes[1]
+                value = (g_shift, g_shift)
+            
+        
+        return value
