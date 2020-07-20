@@ -14,6 +14,12 @@ class Strategy:
     - spread of accepted profit values
     - spread of accepted risk values
     """
+    
+    def __init__(self, strategy: str = "Neutral"):
+        
+        self.strategy = strategy
+        
+    
     def funds_spread(self, funds: float, initial_funds: float, l_rate: float, g_rate: float):
         """
         Computes the spread of profit and risk values based on current funds.
