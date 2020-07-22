@@ -19,8 +19,9 @@ class Strategy:
         
         self.strategy = strategy
         
+        
     
-    def funds_spread(self, funds: float, initial_funds: float, l_rate: float, g_rate: float):
+    def funds_spread(self, funds: float, initial_funds: float, l_rate: float, g_rate: float, l_func = None, g_func = None):
         """
         Computes the spread of profit and risk values based on current funds.
         
@@ -38,6 +39,12 @@ class Strategy:
             
         g_rate: float
             Rate for the change in gains spread with respect to funds per 1000.
+            
+        l_func: function
+            Function for calculating the change in losses spread.
+            
+        g_func: function
+            Function for calculating the change in gains spread.
         
         
         Returns:
@@ -46,6 +53,7 @@ class Strategy:
         Tuple in format (losses_spread, gains_spread)
         
         """
+        
         
         if funds > initial_funds:
             
@@ -62,6 +70,12 @@ class Strategy:
 
             elif self.strategy == "Cautious":
                 value = (0,0)
+                
+            elif (l_func != None) & (g_func != None):
+                user_l_spread = l_func(fund_diff)
+                user_g_spread = g_func(fund_diff)
+                
+                value = (user_l_spread, user_g_spread)
                 
         else:
             value = (0,0)
