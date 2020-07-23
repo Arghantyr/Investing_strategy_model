@@ -179,11 +179,11 @@ class Strategy:
         -----------
         
         num_outcomes: list
-            Tuple with information on type and number of consecutive outcomes of the last transactions.
-            Format: (str, int)
+            A list with information on type and number of consecutive outcomes of the last transactions.
+            Format: [str, int]
             Example:
-            ("l", 5) - 5 consecutive losses
-            ("g", 3) - 3 consecutive gains
+            ["l", 5] - 5 consecutive losses
+            ["g", 3] - 3 consecutive gains
         
         l_rate: float
             Rate for the change in losses shift with respect to consecutive number of losses.
